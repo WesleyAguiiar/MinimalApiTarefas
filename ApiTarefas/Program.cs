@@ -19,14 +19,12 @@ if (app.Environment.IsDevelopment())
 // MapGet são métodos de extensão, estaticos
 app.MapGet("/", () => "Olá mundo!");
 
-app.MapGet("frases", async()=> await new HttpClient().GetStreamAsync("https://ron-swanson-quotes.herokuapp.com/v2/quotes"));
-
 // Retorna todas as tarefas
 app.MapGet("/tarefas", async(AppDbContext db) => await db.Tarefas.ToListAsync());
 
 // Retorna as tarefas por ID
 app.MapGet("/tarefas/{id}", async(int id, AppDbContext db) => 
-                await db.Tarefas.FindAsync(id) is Tarefa tarefa ? Results.Ok(tarefa) : Results.NotFound());
+                await db.Tarefas.FindAsync(id) is Tarefa tarefa ? Results.Ok(tarefa) : Results.NotFound("Tarefa não encontrada"));
 
 // Retorna todas as tarefas que estão marcadas como concluídas
 app.MapGet("/tarefas/concluida", async (AppDbContext db) => await db.Tarefas.Where(t => t.IsConcluido).ToListAsync());
@@ -39,6 +37,34 @@ app.MapPost("/tarefas", async (Tarefa tarefa, AppDbContext db) =>
         return Results.Created($"/tarefas/{tarefa.Id}", tarefa);
     }
 );
+
+
+// Atualiza uma tarefa existente
+app.MapPut("/tarefas/{id}", async (int id, Tarefa inputTarefa, AppDbContext db) =>
+{
+    var tarefa = await db.Tarefas.FindAsync(id);
+    if (tarefa == null)
+    {
+        return Results.NotFound("Tarefa não encontrada");
+    }
+    tarefa.Nome = inputTarefa.Nome;
+    tarefa.IsConcluido = inputTarefa.IsConcluido;
+
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+});
+
+// Deleta uma tarefa existente
+app.MapDelete("/tarefas/{id}", async (int id, AppDbContext db) =>
+{
+    if (await db.Tarefas.FindAsync(id) is Tarefa tarefa)
+    {
+        db.Tarefas.Remove(tarefa);
+        await db.SaveChangesAsync();
+        return Results.Ok(tarefa);
+    }
+    return Results.NotFound("Tarefa não encontrada");
+});
 
 app.Run();
 
